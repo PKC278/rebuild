@@ -1,0 +1,39 @@
+name: Schedule Rebuild
+
+on:
+  schedule:
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  cleanup:
+    name: Delete Old artifact Branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      
+      - name: Delete SNAPSHOT-rockchip-armv8 branch
+        run: |
+          git ls-remote origin refs/heads/SNAPSHOT-rockchip-armv8 && \
+          git push origin --delete SNAPSHOT-rockchip-armv8 || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          retain_days: 0
+          keep_minimum_runs: 0
+
+  schedule-rebuild:
+    name: Daily Rebuild
+    needs: cleanup
+    uses: ./.github/workflows/rebuild.yml
+    with:
+      version: SNAPSHOT
+      board: rockchip
+      subtarget: armv8
+    secrets: inherit
